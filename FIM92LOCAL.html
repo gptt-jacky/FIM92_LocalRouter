@@ -551,7 +551,7 @@
             for (let i = 0; i < 16; i++) {
                 const bitControl = document.createElement('div');
                 // 標記已定義的位元
-                const isDefined = i <= 5; // 0-5 位元已定義
+                const isDefined = true; // 所有位元都定義
                 bitControl.className = `bit-control ${isDefined ? 'defined' : ''}`;
                 bitControl.id = `bit${i}`;
                 
