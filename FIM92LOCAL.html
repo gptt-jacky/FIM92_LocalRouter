@@ -445,6 +445,9 @@
         let continuousSendInterval = null;
         let isContinuousSending = false;
 
+        // 用於處理 SET 指令後緊跟的數字訊息
+        let ignoreNumericMessageUntil = 0;
+
         // 位元定義 - 保持原始定義不變
         const bitDefinitions = {
             0: { name: "刺針本體就緒", desc: "刺針主體接收" },
@@ -778,13 +781,13 @@
 
         // WebSocket連線
         function connectWebSocket() {
-            const protocol = 'ws:';
-            const host = '10.0.0.74';
-            const port = '3000';
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const host = window.location.hostname || 'localhost';
+            const port = window.location.port || '3000';
             const path = '/';
-            
+
             const serverUrl = `${protocol}//${host}:${port}${path}`;
-            
+
             try {
                 ws = new WebSocket(serverUrl);
                 setupWebSocketHandlers();
@@ -849,6 +852,9 @@
                     }
                     
                     addReceivedLog('info', `SET command processed: Bit${bitIndex}=${value}`);
+
+                    // 設定一個短暫的忽略時間，以避免緊隨其後的數字狀態訊息造成衝突
+                    ignoreNumericMessageUntil = Date.now() + 50;
                 }
                 return;
             }
@@ -876,6 +882,12 @@
             // 解析純數字格式
             const numMatch = data.match(/^\d+$/);
             if (numMatch) {
+                // 如果剛處理完 SET 指令，則在短時間內忽略純數字訊息
+                if (Date.now() < ignoreNumericMessageUntil) {
+                    addReceivedLog('warning', `Ignored numeric value (debounce): ${data}`);
+                    return;
+                }
+
                 const value = parseInt(data);
                 if (value >= 0 && value <= 65535) {
                     currentBitState = value;
@@ -922,9 +934,14 @@
             initBitGrid();
             updateDataDisplay();
             updateSendStatus();
-            
+
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const host = window.location.hostname || 'localhost';
+            const port = window.location.port || '3000';
+            const serverUrl = `${protocol}//${host}:${port}/`;
+
             addSentLog('info', 'Bit control system ready (Internal Network)');
-            addSentLog('info', 'Server: ws://10.0.0.74:3000/');
+            addSentLog('info', `Server: ${serverUrl}`);
             addReceivedLog('info', 'Ready to receive messages');
             
             document.getElementById('sendInterval').addEventListener('input', function() {

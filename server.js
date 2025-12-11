@@ -23,15 +23,7 @@ wss.on('connection', (ws, request) => {
         try {
             const data = message.toString();
             console.log('收到內網資料:', data);
-            
-            // 判斷是否為設備識別
-            if (data === 'vibrator_device' || data === 'stinger_missile') {
-                console.log('設備連線 (內網):', data);
-                vibratorDevice = ws;
-                broadcastToWebClients('vibrator_connected');
-                return;
-            }
-            
+
             // 判斷是否為網頁客戶端
             if (data.includes('web_monitor')) {
                 console.log('網頁客戶端連線 (內網)');
@@ -41,7 +33,14 @@ wss.on('connection', (ws, request) => {
                 ws.send('web_monitor_connected');
                 return;
             }
-            
+
+            // 自動識別設備：如果不是網頁客戶端，則視為設備
+            if (!webClients.includes(ws) && ws !== vibratorDevice) {
+                console.log('設備自動連線 (內網) - IP:', request.socket.remoteAddress);
+                vibratorDevice = ws;
+                broadcastToWebClients('vibrator_connected');
+            }
+
             // 判斷是否為 SET 指令
             if (data.startsWith('SET_')) {
                 if (ws === vibratorDevice) {
