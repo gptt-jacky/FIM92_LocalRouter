@@ -48,29 +48,41 @@ wss.on('connection', (ws, request) => {
 
             // 判斷是否為 SET 指令
             if (data.startsWith('SET_')) {
-                if (ws === vibratorDevice) {
-                    // 來自設備的SET指令，轉發給網頁
-                    console.log('設備發送 SET 指令 (內網):', data);
-                    broadcastToWebClients(data);
-                } else {
+                if (webClients.includes(ws)) {
                     // 來自網頁的SET指令，轉發給設備
                     console.log('網頁發送 SET 指令 (內網):', data);
                     sendCommandToVibrator(data);
+                } else {
+                    // 來自設備的SET指令 (只要不是網頁，就視為設備)，廣播給網頁
+                    console.log('設備發送 SET 指令 (內網):', data);
+                    broadcastToWebClients(data);
                 }
                 return;
             }
             
-            // 判斷是否為 BIT 指令 (只來自網頁)
+            // 判斷是否為 BIT 指令
             if (data.startsWith('BIT_')) {
-                console.log('網頁發送 BIT 指令 (內網):', data);
-                sendCommandToVibrator(data);
+                if (webClients.includes(ws)) {
+                    // 來自網頁的BIT指令，轉發給設備
+                    console.log('網頁發送 BIT 指令 (內網):', data);
+                    sendCommandToVibrator(data);
+                } else {
+                    // 來自設備的BIT指令 (只要不是網頁，就視為設備)，廣播給網頁
+                    console.log('設備發送 BIT 指令 (內網):', data);
+                    broadcastToWebClients(data);
+                }
                 return;
             }
             
-            // 判斷是否為 CLS 指令 (只來自網頁)
+            // 判斷是否為 CLS 指令
             if (data === 'CLS') {
-                console.log('網頁發送 CLS 指令 (內網)');
-                sendCommandToVibrator(data);
+                if (webClients.includes(ws)) {
+                    console.log('網頁發送 CLS 指令 (內網)');
+                    sendCommandToVibrator(data);
+                } else {
+                    console.log('設備發送 CLS 指令 (內網)');
+                    broadcastToWebClients(data);
+                }
                 return;
             }
             
@@ -94,15 +106,15 @@ wss.on('connection', (ws, request) => {
                     }
                     
                     // 來源判斷和處理
-                    if (ws === vibratorDevice) {
+                    if (webClients.includes(ws)) {
+                        // 來自網頁的數字指令，轉發給設備 (但要小心處理)
+                        console.log('網頁發送數字指令給設備:', data);
+                        sendCommandToVibrator(data);
+                    } else {
                         // 來自設備的狀態數字，廣播給網頁
                         console.log('設備狀態數字 (內網):', value);
                         console.log('廣播設備狀態給內網網頁客戶端');
                         broadcastToWebClients(data);
-                    } else {
-                        // 來自網頁的數字指令，轉發給設備 (但要小心處理)
-                        console.log('網頁發送數字指令給設備:', data);
-                        sendCommandToVibrator(data);
                     }
                 }
                 return;

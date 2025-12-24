@@ -12,7 +12,7 @@
         }
         body {
             font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
-            background-color: #2c2a3c; /* 墨綠色背景 */
+            background-color: #43798f; /* 墨綠色背景 */
             color: #ffffff;
             min-height: 100vh;
             padding: 10px;
@@ -28,8 +28,8 @@
             text-align: center;
             margin-bottom: 15px;
             padding: 10px;
-            border: 2px solid #cc56d4; /* 改為淺綠色邊框 */
-            background-color: #404999; /* 改為墨綠色 */
+            border: 2px solid #38c0c0; /* 改為淺綠色邊框 */
+            background-color: #8b3249; /* 改為墨綠色 */
         }
 
         .header h1 {
@@ -827,8 +827,37 @@
 
         // 處理收到的訊息
         function handleMessage(data) {
-            addReceivedLog('data', `Received: ${data}`);
+            data = data.toString().trim();
             
+            // 處理設備連線狀態通知
+            if (data === 'vibrator_connected' || data === 'web_monitor_connected') {
+                addReceivedLog('info', `Device connected (${data}) - Syncing state`);
+                // 設備連線時，立即發送當前狀態
+                
+                // 優先發送 BIT0 (刺針本體) 狀態
+                if ((currentBitState & (1 << 0)) !== 0) {
+                    sendCommand('SET_0_1');
+                }
+
+                // 接著發送 BIT1 (震動器) 狀態
+                if ((currentBitState & (1 << 1)) !== 0) {
+                    sendCommand('SET_1_1');
+                }
+
+                // 同步其餘位元 (從 BIT2 開始)
+                for (let i = 2; i < 16; i++) {
+                    if ((currentBitState & (1 << i)) !== 0) {
+                        sendCommand(`SET_${i}_1`);
+                    }
+                }
+                return;
+            }
+            
+            if (data === 'vibrator_disconnected') {
+                addReceivedLog('warning', 'Device disconnected');
+                return;
+            }
+
             // 解析SET_X_Y格式
             const setMatch = data.match(/^SET_(\d+)_([01])$/);
             if (setMatch) {
@@ -851,7 +880,7 @@
                         updateVibratorStatus(value === 1);
                     }
                     
-                    addReceivedLog('info', `SET command processed: Bit${bitIndex}=${value}`);
+                    addReceivedLog('info', data);
 
                     // 設定一個短暫的忽略時間，以避免緊隨其後的數字狀態訊息造成衝突
                     ignoreNumericMessageUntil = Date.now() + 50;
@@ -866,7 +895,7 @@
                 if (value >= 0 && value <= 65535) {
                     currentBitState = value;
                     updateAllBitDisplays();
-                    addReceivedLog('info', `BIT command processed: ${value} (0x${value.toString(16).toUpperCase()})`);
+                    addReceivedLog('info', data);
                 }
                 return;
             }
@@ -875,25 +904,7 @@
             if (data === 'CLS') {
                 currentBitState = 0;
                 updateAllBitDisplays();
-                addReceivedLog('info', 'CLS command processed - all bits cleared');
-                return;
-            }
-
-            // 解析純數字格式
-            const numMatch = data.match(/^\d+$/);
-            if (numMatch) {
-                // 如果剛處理完 SET 指令，則在短時間內忽略純數字訊息
-                if (Date.now() < ignoreNumericMessageUntil) {
-                    addReceivedLog('warning', `Ignored numeric value (debounce): ${data}`);
-                    return;
-                }
-
-                const value = parseInt(data);
-                if (value >= 0 && value <= 65535) {
-                    currentBitState = value;
-                    updateAllBitDisplays();
-                    addReceivedLog('info', `Numeric value processed: ${value}`);
-                }
+                addReceivedLog('info', data);
                 return;
             }
 
