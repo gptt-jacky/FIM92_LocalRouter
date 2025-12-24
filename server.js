@@ -18,7 +18,10 @@ let webClients = [];
 // 處理 WebSocket 連接
 wss.on('connection', (ws, request) => {
     console.log('新的內網連接:', request.socket.remoteAddress);
-    
+
+    // 標記此連接是否已被識別
+    let isIdentified = false;
+
     ws.on('message', (message) => {
         try {
             const data = message.toString();
@@ -30,14 +33,16 @@ wss.on('connection', (ws, request) => {
                 if (!webClients.includes(ws)) {
                     webClients.push(ws);
                 }
+                isIdentified = true;
                 ws.send('web_monitor_connected');
                 return;
             }
 
-            // 自動識別設備：如果不是網頁客戶端，則視為設備
-            if (!webClients.includes(ws) && ws !== vibratorDevice) {
+            // 如果尚未被識別且不是網頁客戶端，自動識別為設備
+            if (!isIdentified && !webClients.includes(ws) && ws !== vibratorDevice) {
                 console.log('設備自動連線 (內網) - IP:', request.socket.remoteAddress);
                 vibratorDevice = ws;
+                isIdentified = true;
                 broadcastToWebClients('vibrator_connected');
             }
 
@@ -310,7 +315,7 @@ server.on('request', (req, res) => {
                     <div class="status">
                         <h3>問題排除</h3>
                         <ul>
-                            <li>如果設備顯示未連接，檢查設備是否發送 'vibrator_device' 識別</li>
+                            <li>如果設備顯示未連接，檢查設備WebSocket連接是否正常</li>
                             <li>如果指令無法發送，確認設備WebSocket連接狀態</li>
                             <li>如果狀態同步異常，檢查訊息格式是否正確</li>
                             <li>按鈕訊號立即歸零：檢查WebSocket frame解析</li>
