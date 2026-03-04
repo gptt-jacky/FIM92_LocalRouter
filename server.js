@@ -4,6 +4,14 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 
+// 捕獲未處理的錯誤，防止伺服器崩潰
+process.on('uncaughtException', (err) => {
+    console.error('未捕獲的錯誤:', err);
+});
+process.on('unhandledRejection', (err) => {
+    console.error('未處理的 Promise 錯誤:', err);
+});
+
 // 設定伺服器 - 使用3000端口
 const PORT = 3000;
 const server = http.createServer();
@@ -361,7 +369,7 @@ server.on('request', (req, res) => {
 });
 
 // 啟動伺服器
-server.listen(PORT, () => {
+server.listen(PORT, '0.0.0.0', () => {
     console.log('=================================');
     console.log('FIM-92 內網位元控制伺服器已啟動! (修正版)');
     console.log(`內網WebSocket 端口: ${PORT}`);
